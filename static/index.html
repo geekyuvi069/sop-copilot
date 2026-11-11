@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOP Copilot</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --text:#1d2330; --muted:#5d6675; --line:#dde1e7;
+          --accent:#0b5cad; --okline:#2e7d4f; --warn:#fff6e0; --warnline:#b7791f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171c; --card:#1d2229; --text:#e8ebf0; --muted:#9aa3b2; --line:#323945;
+            --accent:#5aa2ef; --okline:#4fbf7d; --warn:#332a12; --warnline:#e0a83a; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:17px/1.5 system-ui, sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:16px; }
+  h1 { font-size:22px; margin:4px 0 0; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 16px; }
+  form { display:flex; gap:8px; }
+  input { flex:1; min-width:0; font:inherit; padding:14px; border:1px solid var(--line); border-radius:10px;
+          background:var(--card); color:var(--text); }
+  button { font:inherit; font-weight:600; padding:14px 18px; border:0; border-radius:10px;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.6; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 4px; }
+  .chip { font-size:14px; font-weight:400; padding:8px 12px; background:var(--card); color:var(--text);
+          border:1px solid var(--line); border-radius:999px; text-align:left; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
+  .answer { white-space:pre-wrap; }
+  .found { border-left:5px solid var(--okline); }
+  .notfound { border-left:5px solid var(--warnline); background:var(--warn); }
+  .src { border-top:1px solid var(--line); padding-top:10px; margin-top:10px; font-size:15px; }
+  .src b { color:var(--accent); }
+  .meta { color:var(--muted); font-size:13px; }
+  details pre { white-space:pre-wrap; font-size:13px; background:var(--bg); padding:8px; border-radius:8px; }
+  a { color:var(--accent); }
+  footer { color:var(--muted); font-size:13px; margin-top:24px; }
+  footer s { opacity:.7; }
+</style>
+</head>
+<body>
+<main>
+  <h1>SOP Copilot</h1>
+  <p class="sub">Answers come only from the plant documents listed below. Always check the source.</p>
+
+  <form id="f">
+    <input id="q" placeholder="Ask about a procedure, alarm, limit…" autocomplete="off" required minlength="3">
+    <button id="go">Ask</button>
+  </form>
+  <div class="chips" id="chips"></div>
+
+  <div id="out"></div>
+
+  <footer><b>Documents loaded</b><ul id="docs"></ul></footer>
+</main>
+
+<script>
+const SAMPLES = [
+  "What is the recommended coolant concentration for the TX-200?",
+  "Alarm AL-104 — what does it mean and what should the operator do?",
+  "Who is allowed to remove a lockout lock from a machine?",
+  "What is the outer diameter tolerance for the BH-220 bearing housing?",
+  "How often should spindle runout be checked, and who does it?",
+];
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+for (const s of SAMPLES) {
+  const b = el("button", "chip", s); b.type = "button";
+  b.onclick = () => { $("q").value = s; ask(); };
+  $("chips").append(b);
+}
+
+async function ask() {
+  const question = $("q").value.trim();
+  if (question.length < 3) return;
+  $("go").disabled = true;
+  $("out").replaceChildren(el("div", "card", "Searching the documents…"));
+  try {
+    const r = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ question }) });
+    if (!r.ok) throw new Error("Server error " + r.status);
+    render(await r.json());
+  } catch (e) {
+    $("out").replaceChildren(el("div", "card notfound", "Could not get an answer: " + e.message));
+  } finally { $("go").disabled = false; }
+}
+
+function render(res) {
+  const card = el("div", "card " + (res.found ? "found" : "notfound"));
+  card.append(el("div", "answer", res.answer));
+  for (const s of res.sources) {
+    const src = el("div", "src");
+    src.append(el("b", null, `${s.doc_no} Rev ${String(s.rev).padStart(2, "0")}`), " " + s.title);
+    src.append(el("div", "meta", `${s.section} · effective ${s.effective}`));
+    const link = el("a", null, "Open PDF"); link.href = "/pdf/" + encodeURIComponent(s.file); link.target = "_blank";
+    const det = el("details"); det.append(el("summary", null, "Show excerpt"), el("pre", null, s.text));
+    src.append(link, det);
+    card.append(src);
+  }
+  $("out").replaceChildren(card);
+}
+
+$("f").onsubmit = e => { e.preventDefault(); ask(); };
+
+fetch("/api/documents").then(r => r.json()).then(docs => {
+  for (const d of docs) {
+    const name = `${d.doc_no} Rev ${String(d.rev).padStart(2, "0")} — ${d.title} (effective ${d.effective})`;
+    const li = el("li");
+    if (d.status === "active") li.textContent = name;
+    else li.append(el("s", null, name), ` — ${d.status}, not used for answers`);
+    $("docs").append(li);
+  }
+});
+</script>
+</body>
+</html>
