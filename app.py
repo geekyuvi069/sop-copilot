@@ -17,7 +17,7 @@ from pypdf import PdfReader
 ROOT = Path(__file__).parent
 DOCS = ROOT / "docs"
 OLLAMA = os.getenv("OLLAMA_URL", "http://localhost:11434")
-LLM = os.getenv("LLM_MODEL", "qwen2.5:3b")
+LLM = os.getenv("LLM_MODEL", "qwen3:4b-instruct-2507-q4_K_M")
 EMBED = os.getenv("EMBED_MODEL", "nomic-embed-text")
 TOP_K = 4
 
