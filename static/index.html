@@ -26,6 +26,8 @@
   .chip { font-size:14px; font-weight:400; padding:8px 12px; background:var(--card); color:var(--text);
           border:1px solid var(--line); border-radius:999px; text-align:left; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
+  .changed { background:var(--warn); border:1px solid var(--warnline); border-radius:10px; padding:10px 12px;
+             margin-top:12px; font-size:15px; }
   .answer { white-space:pre-wrap; }
   .found { border-left:5px solid var(--okline); }
   .notfound { border-left:5px solid var(--warnline); background:var(--warn); }
@@ -89,6 +91,16 @@ async function ask() {
 function render(res) {
   const card = el("div", "card " + (res.found ? "found" : "notfound"));
   card.append(el("div", "answer", res.answer));
+  const warned = new Set();  // one "SOP changed" alert per document
+  for (const s of res.sources) {
+    if (!s.changed || warned.has(s.doc_no)) continue;
+    warned.add(s.doc_no);
+    const box = el("div", "changed");
+    box.append(el("b", null, `⚠ ${s.doc_no} changed on ${s.changed.date}`),
+               el("div", null, `Rev ${String(s.rev).padStart(2, "0")} replaces ${s.changed.replaces}. ` +
+                               `Old printed copies are not valid. What changed: ${s.changed.summary}`));
+    card.append(box);
+  }
   for (const s of res.sources) {
     const src = el("div", "src");
     src.append(el("b", null, `${s.doc_no} Rev ${String(s.rev).padStart(2, "0")}`), " " + s.title);

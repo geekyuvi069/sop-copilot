@@ -6,6 +6,10 @@ status = {(d["doc_no"], d["rev"]): d["status"] for d in docs}
 assert status[("QC-SOP-014", 4)] == "active"
 assert status[("QC-SOP-014", 3)] == "superseded by Rev 04"
 assert not any(c["doc_no"] == "QC-SOP-014" and c["rev"] == 3 for c in chunks), "old revision must not be searchable"
+# improvement: chunks of a document that replaced an older revision carry a "what changed" note
+qc = next(c for c in chunks if c["doc_no"] == "QC-SOP-014")
+assert qc["changed"]["replaces"] == "Rev 03" and "MTC made mandatory" in qc["changed"]["summary"], qc["changed"]
+assert not any("changed" in c for c in chunks if c["doc_no"] != "QC-SOP-014")
 
 sections = {(c["doc_no"], c["section"]): c["text"] for c in chunks}
 assert "AL-104" in sections[("MNT-MAN-CNC-02", "6. Common Alarms")]  # table split across a page break stays together

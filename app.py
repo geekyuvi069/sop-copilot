@@ -92,8 +92,17 @@ def load_corpus() -> tuple[list[dict], list[dict]]:
         newest = latest[doc["doc_no"]]
         doc["status"] = "active" if doc["rev"] == newest else f"superseded by Rev {newest:02d}"
         docs.append(doc)
-        if doc["rev"] == newest:
-            chunks += doc_chunks
+        if doc["rev"] != newest:
+            continue
+        older = [d["rev"] for d, _ in loaded if d["doc_no"] == doc["doc_no"] and d["rev"] < newest]
+        if older:  # improvement: tell the supervisor this SOP changed, so they do not follow the old rule
+            history = next((c["text"] for c in doc_chunks if "Revision History" in c["section"]), "")
+            row = re.search(rf"^0?{newest} \| [^|]+ \| (.+)$", history, re.M)
+            doc["changed"] = {"replaces": f"Rev {max(older):02d}", "date": doc["effective"],
+                              "summary": row.group(1) if row else "See the revision history in the PDF."}
+            for c in doc_chunks:
+                c["changed"] = doc["changed"]
+        chunks += doc_chunks
     return docs, chunks
 
 
