@@ -31,7 +31,7 @@ Answer ONLY from the numbered document excerpts. Never use outside knowledge or 
 - Include any exception or special case the excerpts give for the situation.
 - Copy numbers, limits, units, codes and job titles exactly as written.
 - After each fact, cite the excerpt number like [1].
-- If the excerpts do not answer the question, reply with exactly: NOT_FOUND"""
+- If the excerpts do not answer the question, or the message is not a question (e.g. a greeting), reply with exactly: NOT_FOUND"""
 
 
 # ---------- loading and chunking ----------
@@ -169,11 +169,15 @@ def parse_answer(raw: str, hits: list[dict], question: str = "") -> dict:
     if not raw or "NOT_FOUND" in raw:
         return {"found": False, "answer": NOT_FOUND_MSG, "sources": []}
     text = re.sub(r"\s*\[\d+\]", "", raw)
+    overlap = [len(words(text) & words(h["text"])) for h in hits]
+    if not any(overlap):  # grounding check: an answer sharing no words with any excerpt (e.g. echoing "hi") is not trusted
+        return {"found": False, "answer": NOT_FOUND_MSG, "sources": []}
     own = words(text) - words(question)
     support = [len(own & words(h["text"])) for h in hits]
     best = max(support)
     keep = sorted((n for n, s in enumerate(support, 1) if s and s >= best / 2), key=lambda n: -support[n - 1])
-    return {"found": True, "answer": text, "sources": [{"n": n, **hits[n - 1]} for n in keep or [1]]}
+    fallback = [max(range(1, len(hits) + 1), key=lambda n: overlap[n - 1])]
+    return {"found": True, "answer": text, "sources": [{"n": n, **hits[n - 1]} for n in keep or fallback]}
 
 
 def answer(question: str) -> dict:

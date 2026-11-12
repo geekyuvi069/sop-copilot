@@ -26,6 +26,7 @@ hits = [{"text": "This manual covers TX-200 turning centres."},
         {"text": "Way lube oil | ISO VG 68 | Visual, top-up as needed"}]
 assert parse_answer("NOT_FOUND", hits)["found"] is False
 assert parse_answer("  ", hits)["found"] is False
+assert parse_answer("hii", hits, "hii")["found"] is False, "an echo with no words from the documents is not an answer"
 r = parse_answer("It means coolant level low. Top up coolant mixed to 6 - 8 % [1].", hits, "What does AL-412 mean?")
 assert r["answer"] == "It means coolant level low. Top up coolant mixed to 6 - 8 %.", r["answer"]  # [n] removed
 assert [s["n"] for s in r["sources"]] == [2]  # the model cited [1], but the words come from excerpt 2
