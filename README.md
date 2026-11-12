@@ -18,6 +18,7 @@ See [THINKING.md](THINKING.md) for the user research, user journey, AI critique 
 4. **Retrieve:** cosine similarity on embeddings, **plus a boost for exact codes** in the question (`AL-104`, `BH-220`, `QF-07A`). Embeddings alone sent "alarm AL-104" to the lockout procedure, so the boost is needed.
 5. **Answer:** the top 4 sections go to the LLM. It must answer only from them, copy numbers exactly, include exceptions, or reply `NOT_FOUND`. Temperature is 0.
 6. **Pick sources:** small models often cite the wrong excerpt number, so the app does not trust the model's `[n]`. A source is any excerpt that contains the answer's own words (words not already in the question). The UI shows document number, revision, effective date, section, the exact excerpt, and a link to open the PDF.
+7. **Improvement — "this SOP changed" alert:** if the answer comes from a document that replaced an older revision, the card shows a yellow alert with the date and what changed (from the revision history table), and says old printed copies are not valid. Why: see THINKING.md §4.
 
 ## Setup
 
